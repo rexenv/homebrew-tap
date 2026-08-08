@@ -71,8 +71,10 @@ The cask is updated **automatically** — see `docs/RELEASING.md` in the app rep
    artefact-integrity checks, and creates a **draft** release with the dmg attached.
 2. A human runs the Apple-Silicon launch gate (`docs/PUBLISH-TESTING.md` §A) on the
    attached dmg, then clicks **Publish release**.
-3. Publishing triggers the `update-tap` workflow, which downloads the published asset,
-   computes its sha256, and pushes the `version` + `sha256` bump to this repo.
+3. This repo's **Update cask** workflow (polls every 15 min; or run it by hand from the
+   Actions tab) sees the new published release, downloads the asset, computes its
+   sha256, and pushes the `version` + `sha256` bump here. No token or secret involved —
+   it pushes to its own repo with the built-in `GITHUB_TOKEN`.
 4. Users: `brew update && brew upgrade --cask rexenv`.
 
 Only edit `Casks/rexenv.rb` by hand if the automation is broken — and then still hash
