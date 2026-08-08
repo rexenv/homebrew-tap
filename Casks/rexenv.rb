@@ -1,9 +1,9 @@
 cask "rexenv" do
   version "0.1.0"
-  # sha256 of the dmg built 2026-08-08 from commit 3ae658d (clean tree).
-  # MUST be re-verified against the DOWNLOADED Release asset before announcing —
-  # `brew fetch` compares this against what users actually get:
-  #   shasum -a 256 rexenv_0.1.0_universal.dmg
+  # version + sha256 are bumped AUTOMATICALLY by the update-tap workflow in
+  # rexenv/rexenv when a GitHub Release is published; the hash is computed from
+  # the DOWNLOADED release asset, never a local build. Don't edit them by hand
+  # unless the automation is broken.
   sha256 "aed8ad6a5db446c749e249082c3f5d68e9db71d06309285d4dc107afeba641a3"
 
   url "https://github.com/rexenv/rexenv/releases/download/v#{version}/rexenv_#{version}_universal.dmg",

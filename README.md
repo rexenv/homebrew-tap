@@ -64,16 +64,16 @@ and a **local-CA trust** in your login keychain. Before uninstalling:
 
 ## Releasing a new version (maintainers)
 
-1. Build and upload `rexenv_<version>_universal.dmg` to a GitHub Release tagged
-   `v<version>` on [`rexenv/rexenv`](https://github.com/rexenv/rexenv).
-2. Recompute the checksum **from the uploaded asset** (download it first — never hash
-   the local build directly):
-   ```sh
-   shasum -a 256 rexenv_<version>_universal.dmg
-   ```
-3. Bump `version` + `sha256` in `Casks/rexenv.rb`, commit, push.
+The cask is updated **automatically** — see `docs/RELEASING.md` in the app repo:
+
+1. Tag `v<version>` on [`rexenv/rexenv`](https://github.com/rexenv/rexenv) (or run the
+   "Release" workflow from its Actions tab). CI builds the universal dmg, runs the
+   artefact-integrity checks, and creates a **draft** release with the dmg attached.
+2. A human runs the Apple-Silicon launch gate (`docs/PUBLISH-TESTING.md` §A) on the
+   attached dmg, then clicks **Publish release**.
+3. Publishing triggers the `update-tap` workflow, which downloads the published asset,
+   computes its sha256, and pushes the `version` + `sha256` bump to this repo.
 4. Users: `brew update && brew upgrade --cask rexenv`.
 
-Before announcing a release, run the publish gates in `docs/PUBLISH-TESTING.md` in the
-app repo — §A0 (per-slice artefact integrity), §A (Apple-Silicon quarantine launch
-test), and §D (full tap install dry-run).
+Only edit `Casks/rexenv.rb` by hand if the automation is broken — and then still hash
+the **downloaded release asset**, never a local build.
