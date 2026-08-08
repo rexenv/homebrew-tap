@@ -1,0 +1,79 @@
+# homebrew-tap — Homebrew tap for rexenv
+
+Homebrew **cask** tap for [rexenv](https://rexenv.rex.bd) — a native, no-Docker local
+WordPress & web development environment for macOS.
+
+## Install
+
+```sh
+brew tap rexenv/tap
+brew install --cask rexenv
+```
+
+`rex` (the CLI) is put on your PATH automatically by the cask.
+
+## ⚠️ Security: unsigned / un-notarized (ad-hoc), and what that means
+
+This build is **ad-hoc code-signed** (Tauri `signingIdentity: "-"`), **not notarized**
+by Apple — there is no paid Apple Developer ID behind it. Consequences:
+
+- The app **is** validly code-signed (ad-hoc), which satisfies the Apple Silicon
+  requirement that arm64 code carry a signature — so it **runs** on both Apple
+  Silicon and Intel.
+- But macOS **Gatekeeper** quarantines any download and refuses to launch a
+  non-notarized app *while it is quarantined*. To make it launch, the cask's
+  `postflight` **removes the quarantine attribute** (`xattr -dr
+  com.apple.quarantine`). **This deliberately bypasses Gatekeeper's notarization
+  check.**
+
+Install this **only if you trust this source** — you are choosing to run an
+un-notarized build. If the postflight can't remove the attribute on your setup,
+run it yourself once:
+
+```sh
+sudo xattr -rd com.apple.quarantine /Applications/rexenv.app
+```
+
+A future signed + notarized build (with a Developer ID) removes the need for any of
+this — see `docs/SIGNING.md` in the app repo.
+
+## Verifying what you downloaded
+
+```sh
+brew fetch --cask rexenv     # fails loudly if the dmg doesn't match the cask's sha256
+```
+
+The cask pins the sha256 of the exact dmg published on the
+[rexenv releases page](https://github.com/rexenv/rexenv/releases).
+
+## Uninstall — do the in-app step FIRST
+
+rexenv installs **privileged, system-level** things that Homebrew **cannot** remove:
+a **root LaunchDaemon** running the edge proxy on **:443**, `/etc/resolver/*` files,
+and a **local-CA trust** in your login keychain. Before uninstalling:
+
+1. In the app: **Settings → "Remove system changes"** (removes the root edge daemon,
+   DNS resolver files, and CA trust — one admin prompt).
+2. Then:
+   ```sh
+   brew uninstall --cask rexenv          # removes the app + the `rex` symlink
+   brew uninstall --zap --cask rexenv    # also trashes ~/Library app-data + LaunchAgents
+   ```
+
+`--zap` intentionally leaves your **`~/rexenv/Sites`** folder alone (that's your work).
+
+## Releasing a new version (maintainers)
+
+1. Build and upload `rexenv_<version>_universal.dmg` to a GitHub Release tagged
+   `v<version>` on [`rexenv/rexenv`](https://github.com/rexenv/rexenv).
+2. Recompute the checksum **from the uploaded asset** (download it first — never hash
+   the local build directly):
+   ```sh
+   shasum -a 256 rexenv_<version>_universal.dmg
+   ```
+3. Bump `version` + `sha256` in `Casks/rexenv.rb`, commit, push.
+4. Users: `brew update && brew upgrade --cask rexenv`.
+
+Before announcing a release, run the publish gates in `docs/PUBLISH-TESTING.md` in the
+app repo — §A0 (per-slice artefact integrity), §A (Apple-Silicon quarantine launch
+test), and §D (full tap install dry-run).
