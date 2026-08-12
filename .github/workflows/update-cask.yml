@@ -1,4 +1,12 @@
-# Keep Casks/rexenv.rb in step with the latest PUBLISHED release of rexenv/rexenv.
+# Keep Casks/rexenv.rb in step with the latest PUBLISHED release of SOURCE_REPO.
+#
+# SOURCE_REPO is THIS repo for now, not rexenv/rexenv: the app repo is private, and
+# `brew` fetches a cask's url anonymously — a private repo's release asset answers
+# 404 to an unauthenticated GET, so the dmg has to be released somewhere public.
+# The source stays private; only the artefact moves. When rexenv/rexenv goes public,
+# set SOURCE_REPO back to rexenv/rexenv and flip the cask's url + `verified:` in the
+# same commit — the two must always name the same repo, or this workflow would hash
+# one repo's asset into a cask pointing at another's.
 #
 # This lives in the TAP repo, not the app repo, on purpose: a workflow pushing to
 # its OWN repo uses the built-in GITHUB_TOKEN, so the whole pipeline needs no PAT,
@@ -26,6 +34,9 @@ jobs:
   bump:
     name: Bump rexenv cask to the latest release
     runs-on: ubuntu-latest
+    env:
+      # Where the published dmg lives. Interim: this repo (app repo still private).
+      SOURCE_REPO: rexenv/homebrew-tap
     steps:
       - uses: actions/checkout@v4
 
@@ -38,14 +49,24 @@ jobs:
           CURRENT=$(sed -n -E 's/^  version "(.*)"$/\1/p' Casks/rexenv.rb)
           [ -n "$CURRENT" ] || { echo "::error::could not read the cask's current version" >&2; exit 1; }
 
+          # The cask must point at the repo we are about to hash. If these ever
+          # disagree, the bump would write SOURCE_REPO's sha256 into a cask that
+          # downloads a different repo's file — every install then fails the hash
+          # check. Fail here instead, where it is one line to read.
+          grep -q "^  url \"https://github.com/${SOURCE_REPO}/releases/download/" Casks/rexenv.rb || {
+            echo "::error::cask url does not point at ${SOURCE_REPO} — flip the cask and SOURCE_REPO together" >&2
+            grep -n '^  url ' Casks/rexenv.rb >&2
+            exit 1
+          }
+
           # --exclude-drafts/--exclude-pre-releases: a draft release is one that has
           # NOT passed the human §A launch gate yet, and shipping it to users would
           # defeat the gate. Publishing IS the sign-off.
-          LATEST=$(gh release list --repo rexenv/rexenv --limit 1 \
+          LATEST=$(gh release list --repo "$SOURCE_REPO" --limit 1 \
                      --exclude-drafts --exclude-pre-releases \
                      --json tagName --jq '.[0].tagName // ""' || true)
           if [ -z "$LATEST" ]; then
-            echo "no published release on rexenv/rexenv yet (or it is not public) — nothing to do"
+            echo "no published release on $SOURCE_REPO yet (or it is not public) — nothing to do"
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -72,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           ASSET="rexenv_${VERSION}_universal.dmg"
-          gh release download "$TAG" --repo rexenv/rexenv --pattern "$ASSET"
+          gh release download "$TAG" --repo "$SOURCE_REPO" --pattern "$ASSET"
           SHA=$(shasum -a 256 "$ASSET" | awk '{print $1}')
           echo "downloaded $ASSET — sha256 $SHA"
           echo "sha256=$SHA" >> "$GITHUB_OUTPUT"

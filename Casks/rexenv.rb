@@ -1,13 +1,19 @@
 cask "rexenv" do
   version "0.1.0"
-  # version + sha256 are bumped AUTOMATICALLY by the update-tap workflow in
-  # rexenv/rexenv when a GitHub Release is published; the hash is computed from
-  # the DOWNLOADED release asset, never a local build. Don't edit them by hand
-  # unless the automation is broken.
+  # version + sha256 are bumped AUTOMATICALLY by this repo's update-cask workflow
+  # when a Release is published; the hash is computed from the DOWNLOADED release
+  # asset, never a local build. Don't edit them by hand unless the automation is
+  # broken.
   sha256 "aed8ad6a5db446c749e249082c3f5d68e9db71d06309285d4dc107afeba641a3"
 
-  url "https://github.com/rexenv/rexenv/releases/download/v#{version}/rexenv_#{version}_universal.dmg",
-      verified: "github.com/rexenv/rexenv/"
+  # INTERIM HOST — the dmg is released HERE, not on rexenv/rexenv, because the app
+  # repo is still private and `brew` fetches this URL anonymously: a private repo's
+  # release asset answers 404 to an unauthenticated GET, so a cask pointing at it
+  # cannot install for anyone. The SOURCE stays private; only the artefact is public.
+  # When rexenv/rexenv goes public, flip this url + `verified:` back to
+  # github.com/rexenv/rexenv and the SOURCE_REPO env in update-cask.yml with it.
+  url "https://github.com/rexenv/homebrew-tap/releases/download/v#{version}/rexenv_#{version}_universal.dmg",
+      verified: "github.com/rexenv/homebrew-tap/"
   name "rexenv"
   desc "Native no-Docker local WordPress and web development environment"
   homepage "https://rexenv.rex.bd/"
