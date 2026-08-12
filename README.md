@@ -7,8 +7,15 @@ WordPress & web development environment for macOS.
 
 ```sh
 brew tap rexenv/tap
-brew install --cask rexenv
+brew trust rexenv/tap        # current Homebrew refuses to load a third-party tap
+brew install --cask rexenv   # until you trust it — this is that opt-in
 ```
+
+If you skip the middle line, `brew install` stops with *"Refusing to load cask
+rexenv/tap/rexenv from untrusted tap"*. Trusting a tap means you accept that its casks
+run arbitrary code on your machine (this one's `postflight` removes the quarantine
+attribute — see the security note below). `brew trust --cask rexenv/tap/rexenv` trusts
+just this cask instead of the whole tap.
 
 `rex` (the CLI) is put on your PATH automatically by the cask.
 
