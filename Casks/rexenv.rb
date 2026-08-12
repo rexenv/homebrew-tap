@@ -4,7 +4,7 @@ cask "rexenv" do
   # when a Release is published; the hash is computed from the DOWNLOADED release
   # asset, never a local build. Don't edit them by hand unless the automation is
   # broken.
-  sha256 "aed8ad6a5db446c749e249082c3f5d68e9db71d06309285d4dc107afeba641a3"
+  sha256 "b29f21f7ef5c88e0d8c367c329e546a54708d5ed51623913cdb1f27377ab31ef"
 
   # INTERIM HOST — the dmg is released HERE, not on rexenv/rexenv, because the app
   # repo is still private and `brew` fetches this URL anonymously: a private repo's
