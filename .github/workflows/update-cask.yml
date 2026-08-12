@@ -48,6 +48,8 @@ jobs:
           set -euo pipefail
           CURRENT=$(sed -n -E 's/^  version "(.*)"$/\1/p' Casks/rexenv.rb)
           [ -n "$CURRENT" ] || { echo "::error::could not read the cask's current version" >&2; exit 1; }
+          CURRENT_SHA=$(sed -n -E 's/^  sha256 "(.*)"$/\1/p' Casks/rexenv.rb)
+          [ -n "$CURRENT_SHA" ] || { echo "::error::could not read the cask's current sha256" >&2; exit 1; }
 
           # The cask must point at the repo we are about to hash. If these ever
           # disagree, the bump would write SOURCE_REPO's sha256 into a cask that
@@ -72,14 +74,34 @@ jobs:
           fi
 
           V="${LATEST#v}"
-          echo "cask is at $CURRENT; latest published release is $V"
-          if [ "$V" = "$CURRENT" ]; then
+
+          # Compare the HASH too, not just the version. A version-only comparison
+          # went wrong the first time this ran for real (2026-08-12): the cask was
+          # committed at 0.1.0 with a PLACEHOLDER sha256, the first release was also
+          # 0.1.0, so "same version" skipped the bump and left the cask pinning a
+          # hash no published asset has ever had — `brew install` fails the checksum
+          # for every user, and the workflow reports success. Same trap on any
+          # re-upload under an existing tag.
+          #
+          # The API digest is only the CHEAP TRIGGER — the value written to the cask
+          # is still computed from the downloaded asset in the next step, and that
+          # download is verified against this digest. (docs/PUBLISH-TESTING.md §D:
+          # the cask hash comes from what users download, never from a local build.)
+          DIGEST=$(gh api "repos/$SOURCE_REPO/releases/tags/$LATEST" \
+                     --jq '.assets[] | select(.name | endswith("_universal.dmg")) | .digest // ""' | head -1)
+          DIGEST="${DIGEST#sha256:}"
+
+          echo "cask is at $CURRENT / ${CURRENT_SHA:0:12}…; latest published release is $V / ${DIGEST:0:12}…"
+          if [ "$V" = "$CURRENT" ] && [ -n "$DIGEST" ] && [ "$DIGEST" = "$CURRENT_SHA" ]; then
+            echo "cask already matches the published asset — nothing to do"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
+            [ "$V" = "$CURRENT" ] && echo "::notice::same version ($V) but a different asset hash — rehashing"
             {
               echo "skip=false"
               echo "tag=$LATEST"
               echo "version=$V"
+              echo "digest=$DIGEST"
             } >> "$GITHUB_OUTPUT"
           fi
 
@@ -90,12 +112,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.check.outputs.tag }}
           VERSION: ${{ steps.check.outputs.version }}
+          DIGEST: ${{ steps.check.outputs.digest }}
         run: |
           set -euo pipefail
           ASSET="rexenv_${VERSION}_universal.dmg"
           gh release download "$TAG" --repo "$SOURCE_REPO" --pattern "$ASSET"
           SHA=$(shasum -a 256 "$ASSET" | awk '{print $1}')
           echo "downloaded $ASSET — sha256 $SHA"
+
+          # What we downloaded must be what the release says it serves; if these
+          # disagree the download was truncated or swapped under us, and pinning
+          # its hash would ship that to users.
+          if [ -n "$DIGEST" ] && [ "$SHA" != "$DIGEST" ]; then
+            echo "::error::downloaded asset hashes $SHA but the release digest is $DIGEST" >&2
+            exit 1
+          fi
           echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
           rm -f "$ASSET"
 
