@@ -19,6 +19,37 @@ just this cask instead of the whole tap.
 
 `rex` (the CLI) is put on your PATH automatically by the cask.
 
+## Update
+
+```sh
+brew update                  # refresh the tap so brew sees the new cask version
+brew upgrade --cask rexenv   # download + install it
+```
+
+`brew upgrade` alone (no cask named) upgrades rexenv along with everything else.
+
+Notes:
+
+- rexenv **does not self-update** — the cask has no `auto_updates`, so Homebrew is the
+  only updater. If the app ever offers an in-app update, don't use it: it would put
+  `/Applications/rexenv.app` out of sync with what brew thinks is installed.
+- **Quit rexenv first** if it's running. Homebrew quits the app (`dev.rexenv.rexenv`)
+  for you, but a running site stack is cleaner stopped from the app.
+- The quarantine-removing `postflight` re-runs on every upgrade, so the new build
+  launches the same way the first install did — no extra `xattr` step.
+- Your data survives an upgrade: `~/rexenv/Sites` and `~/Library/Application
+  Support/dev.rexenv.rexenv` are untouched (only `--zap` on *uninstall* touches the
+  latter).
+- The **privileged system bits** (root edge daemon on :443, `/etc/resolver/*`, local
+  CA) are not touched by brew — they stay installed across an upgrade. Anything a new
+  release needs there is handled by the app itself, not by the cask.
+
+Check what you have vs. what's published:
+
+```sh
+brew info --cask rexenv      # installed version + the tap's current version
+```
+
 ## ⚠️ Security: unsigned / un-notarized (ad-hoc), and what that means
 
 This build is **ad-hoc code-signed** (Tauri `signingIdentity: "-"`), **not notarized**
