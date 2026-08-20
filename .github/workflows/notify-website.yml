@@ -1,0 +1,60 @@
+name: Notify the website
+
+# Tell rexenv/website that a release landed, so its `release-sync` workflow opens the version
+# bump and the changelog branch within a minute instead of on its next poll.
+#
+# THIS IS AN ACCELERATOR AND NOTHING ELSE. The website polls this repo twice an hour on its
+# own and needs no token to do it; a weekly job there goes red if its release.json is behind.
+# So the pipeline is complete without this file, which is deliberate: `update-cask.yml` in this
+# repo already recorded why cross-repo pushing was rejected here — deploy keys are disabled
+# org-wide, and a hand-made PAT "expires and silently breaks releases".
+#
+# The same reasoning applies to the token below, so this job is built to fail SOFT. With no
+# `WEBSITE_DISPATCH_TOKEN` — never added, or added and expired — it says so and exits 0. An
+# expired token then costs at most half an hour of latency, never a missed release, and never
+# a red X on the release itself.
+#
+# One-time setup, if you want the minute instead of the half hour:
+#   1. Create a fine-grained PAT scoped to rexenv/website ONLY, with Contents: read and write
+#      (the create-dispatch endpoint 403s a read-only token).
+#   2. gh secret set WEBSITE_DISPATCH_TOKEN --repo rexenv/homebrew-tap
+#
+# Anything it can do, a poll already does. That is the point: the credential is worth as
+# little as possible.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to announce (blank = the latest release)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: repository_dispatch → rexenv/website
+    runs-on: ubuntu-latest
+    steps:
+      - name: Announce the release
+        env:
+          GH_TOKEN: ${{ secrets.WEBSITE_DISPATCH_TOKEN }}
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::notice::WEBSITE_DISPATCH_TOKEN is not set — the website will pick $TAG up on its own poll (within ~30 minutes). Nothing is broken."
+            exit 0
+          fi
+          if gh api repos/rexenv/website/dispatches \
+               -f event_type=rexenv-release \
+               -F "client_payload[tag]=$TAG"; then
+            echo "::notice::told rexenv/website about $TAG"
+          else
+            # A dead token must not fail a release. It costs latency, and the poll covers it.
+            echo "::warning::could not dispatch to rexenv/website (token expired or revoked?) — the poll will pick $TAG up within ~30 minutes"
+          fi
