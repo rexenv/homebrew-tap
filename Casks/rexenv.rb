@@ -33,7 +33,30 @@ cask "rexenv" do
   # This DELIBERATELY BYPASSES Gatekeeper's notarization check. Install only if
   # you trust this source. See the tap README for the full security trade-off.
 
-  depends_on macos: :big_sur # minimumSystemVersion 11.0
+  # The app's floor is set by the BINARIES the default stack needs, not by the
+  # app's own code: nginx 1.30.3 and cloudflared 2026.6.1 are both built with a
+  # 15.0 deployment target (`docs/PORTS.md` in the app repo). Below 15 the app
+  # installs and launches and then its web server cannot start — which is the
+  # worst shape of failure, because it looks like a bug in rexenv rather than an
+  # unmet requirement.
+  #
+  # A bare symbol here means ">= that version": `DependsOn#macos=` parses with
+  # `comparator: ">="` and `MacOSRequirement.parse` keeps that default for a
+  # Symbol. Checked in Homebrew's source, not assumed. So this refuses macOS
+  # 11–14 at INSTALL time, which is where a requirement belongs.
+  #
+  # **Do not "clarify" this to `">= :sequoia"`.** The string comparison form is
+  # DEPRECATED — `MacOSRequirement.parse` matches it, calls `odeprecated`, and
+  # names this exact bare-symbol line as the replacement. The explicit-looking
+  # version is the one that breaks.
+  #
+  # This said `:big_sur` from 0.1.0 through 0.3.0, four releases after the app's
+  # `minimumSystemVersion` moved to 15.0 — and the trailing comment restating
+  # "11.0" is why nobody noticed: it pinned a NUMBER the app repo was free to
+  # change without telling this file. It is not restated here on purpose. The
+  # app repo now carries the tripwire (`the_macos_floor_matches_the_shipped_cask`),
+  # which fails ITS build naming this line and the symbol to use.
+  depends_on macos: :sequoia
 
   app "rexenv.app"
   # Put the `rex` CLI on PATH automatically (the app also offers this via
