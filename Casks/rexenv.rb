@@ -10,10 +10,11 @@ cask "rexenv" do
   # repo is still private and `brew` fetches this URL anonymously: a private repo's
   # release asset answers 404 to an unauthenticated GET, so a cask pointing at it
   # cannot install for anyone. The SOURCE stays private; only the artefact is public.
-  # When rexenv/rexenv goes public, flip this url + `verified:` back to
-  # github.com/rexenv/rexenv and the SOURCE_REPO env in update-cask.yml with it.
-  url "https://github.com/rexenv/homebrew-tap/releases/download/v#{version}/rexenv_#{version}_universal.dmg",
-      verified: "github.com/rexenv/homebrew-tap/"
+  # When rexenv/rexenv goes public, flip this url back to github.com/rexenv/rexenv
+  # and the SOURCE_REPO env in update-cask.yml with it. No `verified:` here: brew
+  # 6.0.22 deprecated that parameter in favour of its default URL verification
+  # (warned 5 Sep 2026), and the url's host is the check now.
+  url "https://github.com/rexenv/homebrew-tap/releases/download/v#{version}/rexenv_#{version}_universal.dmg"
   name "rexenv"
   desc "Native no-Docker local WordPress and web development environment"
   homepage "https://rexenv.rex.bd/"
@@ -63,14 +64,19 @@ cask "rexenv" do
   # Settings → Command-line tool; with the cask it's already done).
   binary "#{appdir}/rexenv.app/Contents/MacOS/rex"
 
-  postflight do
+  # Declarative steps, not a Ruby `postflight` block: Homebrew deprecated the
+  # flight blocks (brew 6, `Cask/InstallSteps`) and `brew fetch` warned on the
+  # 0.5.0 bump, 5 Sep 2026. Steps are serialised to the JSON API, so `{{appdir}}`
+  # is an install-time token, not Ruby interpolation. `run` aborts the install
+  # on a non-zero exit; `xattr -r -d` exits 0 even where the attribute is absent
+  # (checked on a mixed tree), so an already-clean app does not fail the step.
+  postflight_steps do
     # Remove the quarantine attribute so the ad-hoc-signed app launches. Runs on
     # the freshly-copied, user-owned app in /Applications, so no sudo is needed;
     # if your setup makes /Applications root-owned, run the manual step from the
     # README instead.
-    system_command "/usr/bin/xattr",
-                   args: ["-r", "-d", "com.apple.quarantine", "#{appdir}/rexenv.app"],
-                   sudo: false
+    run "/usr/bin/xattr",
+        args: ["-r", "-d", "com.apple.quarantine", "{{appdir}}/rexenv.app"]
   end
 
   uninstall quit: "dev.rexenv.rexenv"

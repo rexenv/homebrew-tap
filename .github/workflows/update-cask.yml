@@ -4,8 +4,8 @@
 # `brew` fetches a cask's url anonymously — a private repo's release asset answers
 # 404 to an unauthenticated GET, so the dmg has to be released somewhere public.
 # The source stays private; only the artefact moves. When rexenv/rexenv goes public,
-# set SOURCE_REPO back to rexenv/rexenv and flip the cask's url + `verified:` in the
-# same commit — the two must always name the same repo, or this workflow would hash
+# set SOURCE_REPO back to rexenv/rexenv and flip the cask's url in the same commit —
+# the two must always name the same repo, or this workflow would hash
 # one repo's asset into a cask pointing at another's.
 #
 # This lives in the TAP repo, not the app repo, on purpose: a workflow pushing to

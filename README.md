@@ -13,7 +13,7 @@ brew install --cask rexenv   # until you trust it — this is that opt-in
 
 If you skip the middle line, `brew install` stops with *"Refusing to load cask
 rexenv/tap/rexenv from untrusted tap"*. Trusting a tap means you accept that its casks
-run arbitrary code on your machine (this one's `postflight` removes the quarantine
+run arbitrary code on your machine (this one's `postflight_steps` removes the quarantine
 attribute — see the security note below). `brew trust --cask rexenv/tap/rexenv` trusts
 just this cask instead of the whole tap.
 
@@ -35,7 +35,7 @@ Notes:
   `/Applications/rexenv.app` out of sync with what brew thinks is installed.
 - **Quit rexenv first** if it's running. Homebrew quits the app (`dev.rexenv.rexenv`)
   for you, but a running site stack is cleaner stopped from the app.
-- The quarantine-removing `postflight` re-runs on every upgrade, so the new build
+- The quarantine-removing `postflight_steps` re-runs on every upgrade, so the new build
   launches the same way the first install did — no extra `xattr` step.
 - Your data survives an upgrade: `~/rexenv/Sites` and `~/Library/Application
   Support/dev.rexenv.rexenv` are untouched (only `--zap` on *uninstall* touches the
@@ -60,7 +60,7 @@ by Apple — there is no paid Apple Developer ID behind it. Consequences:
   Silicon and Intel.
 - But macOS **Gatekeeper** quarantines any download and refuses to launch a
   non-notarized app *while it is quarantined*. To make it launch, the cask's
-  `postflight` **removes the quarantine attribute** (`xattr -dr
+  `postflight_steps` **removes the quarantine attribute** (`xattr -dr
   com.apple.quarantine`). **This deliberately bypasses Gatekeeper's notarization
   check.**
 
