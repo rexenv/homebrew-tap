@@ -24,6 +24,29 @@ cask "rexenv" do
     strategy :github_latest
   end
 
+  # rexenv updates ITSELF from 0.6.0 on: it checks a signed descriptor in
+  # rexenv/runtimes and, when the user accepts, replaces /Applications/rexenv.app
+  # with the bundle that release published. Declaring that here is not a
+  # preference, it is the truth — and it changes three things:
+  #
+  #   1. `brew upgrade` (with or without a cask named) SKIPS rexenv. Homebrew
+  #      leaves auto-updating casks alone, which is what stops brew and the app
+  #      from both installing over each other.
+  #   2. `brew upgrade --greedy` and `brew reinstall` still act, and both install
+  #      whatever THIS FILE says — so either can DOWNGRADE an app that updated
+  #      itself past the cask. The cask is bumped by update-cask.yml within
+  #      minutes of a release, so the window is small, but it is real and the
+  #      README says so rather than pretending otherwise.
+  #   3. Homebrew stops treating its own receipt as the installed version and
+  #      reads `CFBundleShortVersionString` out of the installed app instead
+  #      (brew's auto_updates handling, since 5 Apr 2026). `brew info --cask
+  #      rexenv` therefore reports what is actually in /Applications, which is
+  #      the whole point: after an in-app update it no longer lies.
+  #
+  # Removing this line without removing the in-app updater brings back exactly
+  # the collision it exists to prevent: brew reinstalling an older bundle under
+  # a running app that just replaced itself.
+  auto_updates true
   # This build is AD-HOC signed, NOT notarized (no paid Apple Developer ID).
   # macOS Gatekeeper quarantines the download and refuses to launch a
   # non-notarized app while quarantined. The app IS validly code-signed (ad-hoc),

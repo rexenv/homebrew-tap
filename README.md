@@ -21,20 +21,35 @@ just this cask instead of the whole tap.
 
 ## Update
 
-```sh
-brew update                  # refresh the tap so brew sees the new cask version
-brew upgrade --cask rexenv   # download + install it
-```
+**rexenv updates itself.** From 0.6.0 on, the app checks for a new release, tells you
+one is there, and installs it when you say so — Settings → About → Updates, or the
+menu-bar icon. Nothing to run, and it works the same whether you installed with brew or by
+dragging the dmg.
 
-`brew upgrade` alone (no cask named) upgrades rexenv along with everything else.
+The cask declares `auto_updates true` to match, which means **`brew upgrade` skips
+rexenv on purpose**. That is what stops brew and the app from installing over each
+other. `brew info --cask rexenv` reads the version out of the installed app, so it
+still tells you the truth after an in-app update.
+
+If you would rather have brew do it, or the in-app update failed:
+
+```sh
+brew update
+brew reinstall --cask rexenv   # installs whatever the cask currently names
+```
 
 Notes:
 
-- rexenv **does not self-update** — the cask has no `auto_updates`, so Homebrew is the
-  only updater. If the app ever offers an in-app update, don't use it: it would put
-  `/Applications/rexenv.app` out of sync with what brew thinks is installed.
-- **Quit rexenv first** if it's running. Homebrew quits the app (`dev.rexenv.rexenv`)
-  for you, but a running site stack is cleaner stopped from the app.
+- **`--greedy` and `reinstall` can move you BACKWARDS.** Both install the version this
+  tap's cask names, and the app may have updated itself past it. The cask is bumped
+  within minutes of a release, so the window is small — but if you land on an older
+  build, the app will simply offer the newer one again.
+- **Quit rexenv first** if you are using brew. Homebrew quits the app
+  (`dev.rexenv.rexenv`) for you, but a running site stack is cleaner stopped from the
+  app. An in-app update handles this itself: it quits, swaps, and relaunches.
+- **Turning it off:** Settings → About → Updates → untick *“Check for new releases
+  automatically”*. rexenv then contacts nothing on its own; *Check now* still works,
+  and `brew upgrade --cask rexenv --greedy` becomes your updater.
 - The quarantine-removing `postflight_steps` re-runs on every upgrade, so the new build
   launches the same way the first install did — no extra `xattr` step.
 - Your data survives an upgrade: `~/rexenv/Sites` and `~/Library/Application
@@ -121,12 +136,19 @@ the app repo is private, the dmg is built on a maintainer's Mac and released **h
    Actions tab) sees the new published release, downloads the asset, computes its
    sha256, and pushes the `version` + `sha256` bump here. No token or secret involved —
    it pushes to its own repo with the built-in `GITHUB_TOKEN`.
-5. Users: `brew update && brew upgrade --cask rexenv`.
+5. In [`rexenv/runtimes`](https://github.com/rexenv/runtimes): **Actions → “Publish
+   app update manifest”** (dry run first). **This is the click that is easy to forget.**
+   Until it runs, every installed rexenv keeps reporting it is already current — no
+   error, no log, nothing. The cask bump above does not tell a single running app
+   anything. Verify with `scripts/check-app-manifest.sh` in the app repo.
+6. Users: nothing. Their app offers the update at its next check.
 
 When [`rexenv/rexenv`](https://github.com/rexenv/rexenv) goes public, steps 1–3 go back
 to being CI's job (tag → draft release with the dmg → publish), and `SOURCE_REPO` in
-`update-cask.yml` plus the cask's `url`/`verified:` move back to the app repo — those
-three must change in one commit.
+`update-cask.yml` plus the cask's `url` move back to the app repo — those three must
+change in one commit. (There is no `verified:` any more: brew 6.0.22 deprecated it in
+favour of its default URL verification.) The app's `ALLOWED_RELEASE_PREFIXES` already
+accepts both hosts, so update descriptors keep verifying across that move.
 
 Only edit `Casks/rexenv.rb` by hand if the automation is broken — and then still hash
 the **downloaded release asset**, never a local build.
