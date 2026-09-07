@@ -26,24 +26,29 @@ one is there, and installs it when you say so — Settings → About → Updates
 menu-bar icon. Nothing to run, and it works the same whether you installed with brew or by
 dragging the dmg.
 
-The cask declares `auto_updates true` to match, which means **`brew upgrade` skips
-rexenv on purpose**. That is what stops brew and the app from installing over each
-other. `brew info --cask rexenv` reads the version out of the installed app, so it
-still tells you the truth after an in-app update.
+The cask declares `auto_updates true` to match, so **a plain `brew upgrade` leaves rexenv
+alone** — that is what stops brew and the app from installing over each other.
+`brew info --cask rexenv` reads the version out of the installed app, so it still tells
+you the truth after an in-app update.
 
-If you would rather have brew do it, or the in-app update failed:
+**Naming the cask overrides that**, and this is the part that surprises people:
 
 ```sh
-brew update
-brew reinstall --cask rexenv   # installs whatever the cask currently names
+brew upgrade              # skips rexenv — the app is its own updater
+brew upgrade --cask rexenv   # ACTS. Naming a cask means you asked for it.
 ```
+
+If you would rather have brew do it, or the in-app update failed, run `brew update` first
+so your tap checkout knows about the newest release, then upgrade or reinstall.
 
 Notes:
 
-- **`--greedy` and `reinstall` can move you BACKWARDS.** Both install the version this
-  tap's cask names, and the app may have updated itself past it. The cask is bumped
-  within minutes of a release, so the window is small — but if you land on an older
-  build, the app will simply offer the newer one again.
+- **Naming the cask, `--greedy` and `reinstall` can all move you BACKWARDS.** Each
+  installs the version *your local tap checkout* names, and the app may have updated
+  itself past it. Measured 7 Sep 2026: `brew upgrade --cask rexenv` on a machine whose
+  tap was a release behind replaced a self-updated 0.6.1 with 0.6.0, without a word about
+  going backwards. Nothing breaks — the app notices at its next check and offers the
+  newer build again — but `brew update` first, and prefer letting the app update itself.
 - **Quit rexenv first** if you are using brew. Homebrew quits the app
   (`dev.rexenv.rexenv`) for you, but a running site stack is cleaner stopped from the
   app. An in-app update handles this itself: it quits, swaps, and relaunches.

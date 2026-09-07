@@ -29,14 +29,18 @@ cask "rexenv" do
   # with the bundle that release published. Declaring that here is not a
   # preference, it is the truth — and it changes three things:
   #
-  #   1. `brew upgrade` (with or without a cask named) SKIPS rexenv. Homebrew
-  #      leaves auto-updating casks alone, which is what stops brew and the app
-  #      from both installing over each other.
-  #   2. `brew upgrade --greedy` and `brew reinstall` still act, and both install
-  #      whatever THIS FILE says — so either can DOWNGRADE an app that updated
-  #      itself past the cask. The cask is bumped by update-cask.yml within
-  #      minutes of a release, so the window is small, but it is real and the
-  #      README says so rather than pretending otherwise.
+  #   1. A plain `brew upgrade` SKIPS rexenv. Homebrew leaves auto-updating casks
+  #      alone, which is what stops brew and the app from both installing over
+  #      each other.
+  #   2. `brew upgrade --cask rexenv` still ACTS — naming a cask means the user
+  #      asked for it, and auto_updates does not override an explicit request.
+  #      So do `--greedy` and `reinstall`. All three install whatever the user's
+  #      LOCAL tap checkout says, so any of them can DOWNGRADE an app that
+  #      updated itself past it. Measured 7 Sep 2026: the named form put 0.6.0
+  #      back over a self-updated 0.6.1 on a Mac whose tap was one release
+  #      behind, silently. Nothing breaks — the app re-offers at its next check —
+  #      but this line said "with or without a cask named" until that happened,
+  #      which is how a comment nobody tested becomes the thing that misleads.
   #   3. Homebrew stops treating its own receipt as the installed version and
   #      reads `CFBundleShortVersionString` out of the installed app instead
   #      (brew's auto_updates handling, since 5 Apr 2026). `brew info --cask
