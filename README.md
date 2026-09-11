@@ -137,10 +137,11 @@ the app repo is private, the dmg is built on a maintainer's Mac and released **h
    Apple-Silicon launch gate) on that exact dmg.
 3. `gh release create v<version> --repo rexenv/homebrew-tap <dmg> <dmg>.sha256` — draft
    it if §A hasn't been run yet; **publishing is the sign-off**.
-4. This repo's **Update cask** workflow (polls every 15 min; or run it by hand from the
-   Actions tab) sees the new published release, downloads the asset, computes its
-   sha256, and pushes the `version` + `sha256` bump here. No token or secret involved —
-   it pushes to its own repo with the built-in `GITHUB_TOKEN`.
+4. This repo's **Update cask** workflow runs on that publish (`release: published` — it
+   used to poll a `*/15` cron, which GitHub ran hours apart; run it by hand from the
+   Actions tab if it did not fire), downloads the asset, computes its sha256, and pushes
+   the `version` + `sha256` bump here. No token or secret involved — it pushes to its
+   own repo with the built-in `GITHUB_TOKEN`.
 5. In [`rexenv/runtimes`](https://github.com/rexenv/runtimes): **Actions → “Publish
    app update manifest”** (dry run first). **This is the click that is easy to forget.**
    Until it runs, every installed rexenv keeps reporting it is already current — no
@@ -151,7 +152,9 @@ the app repo is private, the dmg is built on a maintainer's Mac and released **h
 When [`rexenv/rexenv`](https://github.com/rexenv/rexenv) goes public, steps 1–3 go back
 to being CI's job (tag → draft release with the dmg → publish), and `SOURCE_REPO` in
 `update-cask.yml` plus the cask's `url` move back to the app repo — those three must
-change in one commit. (There is no `verified:` any more: brew 6.0.22 deprecated it in
+change in one commit. **That commit must also give `update-cask.yml` a trigger again**:
+it fires on THIS repo's release event, and a release published in the app repo never
+sends one here. (There is no `verified:` any more: brew 6.0.22 deprecated it in
 favour of its default URL verification.) The app's `ALLOWED_RELEASE_PREFIXES` already
 accepts both hosts, so update descriptors keep verifying across that move.
 

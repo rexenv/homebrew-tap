@@ -15,20 +15,34 @@
 # no API to mint a PAT — so cross-repo push would mean a hand-made token that
 # expires and silently breaks releases.)
 #
-# The trade is latency: this polls instead of being pushed to. A release is picked
-# up within ~15 minutes, or instantly via Actions → "Update cask" → Run workflow.
+# Triggered by the release itself: publishing a release HERE fires `release:
+# published`, and the cask is bumped in seconds. It used to poll on a `*/15` cron,
+# and GitHub runs scheduled workflows when it has capacity, not on the minute — on
+# 11 Sep 2026 the runs landed 4.5 hours apart and a published 0.7.0 sat unshipped.
+# A human publishing a release is an event that DOES start workflows (unlike a
+# GITHUB_TOKEN-made one), so no credential is involved. Run workflow stays for a
+# re-run or a release published before this trigger existed.
+#
+# When SOURCE_REPO goes back to rexenv/rexenv, that repo's release event cannot
+# reach this workflow without a cross-repo credential — so the flip must restore a
+# trigger here (a schedule, or a repository_dispatch sent with a token).
 #
 # The sha256 is computed from the DOWNLOADED release asset — the rule from
 # docs/PUBLISH-TESTING.md §D, enforced by construction: this runner never builds.
 name: Update cask
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
   contents: write # push the version + sha256 bump to this repo
+
+# A publish and a hand-run can overlap; queue them, so two bumps never race to push.
+concurrency:
+  group: update-cask
+  cancel-in-progress: false
 
 jobs:
   bump:
@@ -38,7 +52,11 @@ jobs:
       # Where the published dmg lives. Interim: this repo (app repo still private).
       SOURCE_REPO: rexenv/homebrew-tap
     steps:
+      # The DEFAULT BRANCH, explicitly: on a `release` event the checkout's ref is the
+      # release TAG, a detached HEAD the bump could not push from.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
 
       - name: Compare the cask against the latest release
         id: check
