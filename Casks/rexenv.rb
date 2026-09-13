@@ -1,10 +1,10 @@
 cask "rexenv" do
-  version "0.7.1"
+  version "0.7.2"
   # version + sha256 are bumped AUTOMATICALLY by this repo's update-cask workflow
   # when a Release is published; the hash is computed from the DOWNLOADED release
   # asset, never a local build. Don't edit them by hand unless the automation is
   # broken.
-  sha256 "89239fd11999b4efa446d5c1ccf9f2fd3e46aea91caa9142c013906275d0a3e3"
+  sha256 "318211457111941ce3c5a8c050cdde16cfeb41a13c9246aef8eb571297c8a9c3"
 
   # INTERIM HOST — the dmg is released HERE, not on rexenv/rexenv, because the app
   # repo is still private and `brew` fetches this URL anonymously: a private repo's
