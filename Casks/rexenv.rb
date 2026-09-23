@@ -84,7 +84,7 @@ cask "rexenv" do
   # change without telling this file. It is not restated here on purpose. The
   # app repo now carries the tripwire (`the_macos_floor_matches_the_shipped_cask`),
   # which fails ITS build naming this line and the symbol to use.
-  depends_on macos: :sequoia
+  depends_on macos: :ventura
 
   app "rexenv.app"
   # Put the `rex` CLI on PATH automatically (the app also offers this via
