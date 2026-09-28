@@ -84,6 +84,12 @@
     }
 
     function Install-Rexenv {
+        # An App Control policy - Smart App Control is one - runs PowerShell in ConstrainedLanguage
+        # mode, where the .NET calls below cannot run. Say so in a sentence, before the first of
+        # them would fail with an error about "core types" instead.
+        if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
+            throw "PowerShell runs in $($ExecutionContext.SessionState.LanguageMode) mode here, which an App Control policy such as Smart App Control imposes, and this installer needs FullLanguage. The same policy would block rexenv itself, which is not code-signed."
+        }
         if ([Environment]::OSVersion.Version.Major -lt 10) {
             throw 'rexenv needs Windows 10 or 11.'
         }
@@ -101,6 +107,17 @@
             Say "rexenv $($existing.DisplayVersion) is already installed: $(([string]$existing.InstallLocation).Trim('"'))"
             Say 'it updates itself: Settings -> About -> Check now. Nothing was changed.'
             return
+        }
+
+        # Smart App Control blocks apps that are not code-signed and not yet known to Microsoft's
+        # cloud, and rexenv is not code-signed. A note, not a refusal: reputation can let a file
+        # through. Never seen On here - it turns On only after a clean install's evaluation, and an
+        # install where it is Off resets it to Off at the next policy refresh (measured on Windows
+        # 11 24H2, 29 Sep 2026) - so this names the likely cause before Windows shows its own.
+        $sac = $null
+        try { $sac = [string](Get-MpComputerStatus -ErrorAction Stop).SmartAppControlState } catch { $sac = $null }
+        if ($sac -eq 'On') {
+            Say 'note: Smart App Control is on. It blocks apps that are not code-signed and not yet known to Microsoft, and rexenv is not code-signed - if Windows blocks the installer, that is why.'
         }
 
         # Windows PowerShell 5.1 on an older .NET may not offer TLS 1.2 by default, and
