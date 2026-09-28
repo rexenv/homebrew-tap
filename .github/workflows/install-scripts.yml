@@ -1,0 +1,178 @@
+# Run install.sh and install.ps1 for real, on a fresh machine of every OS they serve.
+#
+# The scripts build release asset NAMES (rexenv_<version>_universal.app.tar.gz,
+# _x64-setup.exe, _<arch>.deb, _<arch>.AppImage). A rename in the app repo's release
+# pipeline would break every new install without a single error anywhere else — the cask
+# names only the dmg — so this installs the latest PUBLISHED release after every publish,
+# weekly, and whenever the scripts change. Each job runs its script TWICE: the second run
+# must say "already installed" and change nothing (a script that reinstalled over an app
+# that updated itself would downgrade it).
+#
+# It proves the mechanics: version lookup, download, checksum, install, the result on
+# disk. It cannot prove the OS gates a user meets on a desktop — SmartScreen and
+# Gatekeeper dialogs need a GUI session. The app repo's docs/SMOKE-TEST.md carries those
+# rows, and docs/PLAN-install-scripts.md says why the command path meets neither.
+#
+# Read-only: no token beyond contents: read, nothing is pushed or published.
+name: Install scripts
+
+on:
+  push:
+    branches: [main]
+    paths: [install.sh, install.ps1, .github/workflows/install-scripts.yml]
+  pull_request:
+    paths: [install.sh, install.ps1, .github/workflows/install-scripts.yml]
+  release:
+    types: [published]
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      # The default branch on a release event, whose own ref is the release TAG — a tag
+      # can point at a commit older than the scripts.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.ref }}
+      - name: shellcheck install.sh
+        run: shellcheck -s bash install.sh
+      - name: install.ps1 is ASCII only
+        # Windows PowerShell 5.1 decodes a response with no charset as Latin-1, so one
+        # typographic dash in a message becomes mojibake — or a parse error — for `irm | iex`.
+        run: |
+          if LC_ALL=C grep -n '[^[:print:][:space:]]' install.ps1; then
+            echo "::error::install.ps1 must be ASCII only"; exit 1
+          fi
+      - name: PSScriptAnalyzer install.ps1
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          # Write-Host IS the output: the script talks to the person who ran it, and
+          # anything written to the pipeline would be emitted by `iex` as a value.
+          $found = Invoke-ScriptAnalyzer -Path install.ps1 -Severity Warning, Error -ExcludeRule PSAvoidUsingWriteHost
+          $found | Format-Table -AutoSize | Out-String | Write-Host
+          if ($found) { exit 1 }
+
+  unix:
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, expect: app }
+          - { os: macos-15-intel, expect: app }
+          - { os: ubuntu-22.04, expect: deb }
+          - { os: ubuntu-24.04-arm, expect: deb }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.ref }}
+      - name: The latest published release
+        id: latest
+        run: |
+          loc=$(curl -fsS -o /dev/null -w '%{redirect_url}' https://github.com/rexenv/homebrew-tap/releases/latest)
+          echo "version=${loc##*/v}" >> "$GITHUB_OUTPUT"
+      - name: Install (first run)
+        env:
+          REXENV_NO_LAUNCH: "1"
+        # Piped, the way a user runs it.
+        run: cat install.sh | bash
+      - name: Check what landed
+        env:
+          VERSION: ${{ steps.latest.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.expect }}" = app ]; then
+            app=/Applications/rexenv.app
+            got=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")
+            [ "$got" = "$VERSION" ] || { echo "::error::bundle is $got, expected $VERSION"; exit 1; }
+            if xattr -p com.apple.quarantine "$app" 2>/dev/null; then
+              echo "::error::the installed bundle carries com.apple.quarantine"; exit 1
+            fi
+            codesign --verify --deep --strict "$app"
+            echo "installed $got, no quarantine, signature valid"
+          else
+            got=$(dpkg-query -W -f='${Version}' rexenv)
+            [ "$got" = "$VERSION" ] || { echo "::error::package is $got, expected $VERSION"; exit 1; }
+            printed=$(/usr/bin/rexenv --print-version)
+            [ "$printed" = "$VERSION" ] || { echo "::error::rexenv --print-version says $printed"; exit 1; }
+            echo "installed $got, rexenv --print-version = $printed"
+          fi
+      - name: Second run touches nothing
+        env:
+          REXENV_NO_LAUNCH: "1"
+        run: |
+          set -euo pipefail
+          out=$(cat install.sh | bash)
+          echo "$out"
+          grep -q 'is already installed' <<< "$out" || { echo "::error::the second run did not stop at the installed copy"; exit 1; }
+
+  appimage:
+    # A distribution without apt takes the AppImage path.
+    needs: lint
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.ref }}
+      - name: Install (first run)
+        env:
+          REXENV_NO_LAUNCH: "1"
+        run: cat install.sh | bash
+      - name: Check what landed
+        run: |
+          set -euo pipefail
+          test -x "$HOME/Applications/rexenv.AppImage"
+          ls -l "$HOME/Applications/rexenv.AppImage"
+      - name: Second run touches nothing
+        env:
+          REXENV_NO_LAUNCH: "1"
+        run: |
+          out=$(cat install.sh | bash)
+          echo "$out"
+          grep -q 'is already installed' <<< "$out"
+
+  windows:
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows PowerShell 5.1 is what `irm | iex` meets on a stock Windows; pwsh 7 is
+        # what a developer may have made their default.
+        shell: [powershell, pwsh]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.ref }}
+      - name: Install (first run)
+        run: |
+          $env:REXENV_NO_LAUNCH = '1'
+          iex (Get-Content -Raw .\install.ps1)
+      - name: Check what landed
+        run: |
+          $req = [System.Net.HttpWebRequest]::Create('https://github.com/rexenv/homebrew-tap/releases/latest')
+          $req.AllowAutoRedirect = $false; $req.Method = 'HEAD'
+          $resp = $req.GetResponse(); $version = ([string]$resp.Headers['Location']) -replace '^.*/v', ''; $resp.Close()
+          $entry = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\rexenv'
+          if ($entry.DisplayVersion -ne $version) { throw "installed $($entry.DisplayVersion), expected $version" }
+          $exe = Join-Path (([string]$entry.InstallLocation).Trim('"')) 'rexenv.exe'
+          if (-not (Test-Path -LiteralPath $exe)) { throw "no $exe" }
+          "installed $($entry.DisplayVersion) at $exe"
+      - name: Second run touches nothing
+        run: |
+          $env:REXENV_NO_LAUNCH = '1'
+          $out = iex (Get-Content -Raw .\install.ps1) 6>&1 | Out-String
+          $out
+          if ($out -notmatch 'is already installed') { throw 'the second run did not stop at the installed copy' }
