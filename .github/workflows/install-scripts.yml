@@ -165,10 +165,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.ref }}
-      - name: Install (first run)
+      - name: ConstrainedLanguage is refused in a sentence
+        # What an App Control policy (Smart App Control is one) does to PowerShell. No runner has
+        # such a policy, so the mode is set by hand; the sentence must come before any .NET call
+        # fails with an error about "core types".
         run: |
+          $out = & $(if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh' } else { 'powershell' }) -NoProfile -Command {
+            $ExecutionContext.SessionState.LanguageMode = 'ConstrainedLanguage'
+            Invoke-Expression (Get-Content -Raw .\install.ps1) 6>&1 | Out-String
+          }
+          "$out"
+          if ("$out" -notmatch 'ConstrainedLanguage mode here') { throw 'no sentence for ConstrainedLanguage' }
+          if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\rexenv') { throw 'it installed anyway' }
+      - name: Install (first run, Smart App Control reported On)
+        # No runner has Smart App Control On (no machine can be switched to it), so
+        # Get-MpComputerStatus is shadowed by a function - PowerShell resolves functions before
+        # cmdlets - and the note must appear. The install itself must still go ahead: a note,
+        # not a refusal.
+        run: |
+          function Get-MpComputerStatus { [pscustomobject]@{ SmartAppControlState = 'On' } }
           $env:REXENV_NO_LAUNCH = '1'
-          iex (Get-Content -Raw .\install.ps1)
+          $out = iex (Get-Content -Raw .\install.ps1) 6>&1 | Out-String
+          $out
+          if ($out -notmatch 'Smart App Control is on') { throw 'no Smart App Control note' }
       - name: Check what landed
         run: |
           $req = [System.Net.HttpWebRequest]::Create('https://github.com/rexenv/homebrew-tap/releases/latest')
