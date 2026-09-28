@@ -49,13 +49,18 @@
         return $null
     }
 
+    # The OS's own architecture, for the Windows-on-Arm note only. PROCESSOR_ARCHITEW6432 is set
+    # only inside a 32-bit process on 64-bit Windows and names the OS's architecture; otherwise
+    # PROCESSOR_ARCHITECTURE does.
+    #
+    # NOT [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture. In an INTERACTIVE
+    # Windows PowerShell 5.1 that type name resolves to PSReadLine 2.0.0's own internal class,
+    # which has no such property, so it reads as $null - and the first release of this script
+    # refused every Windows desktop with "this machine is ." (measured 29 Sep 2026; CI and SSH
+    # runs are non-interactive, load no PSReadLine, and passed). The lint job greps for the name.
     function Get-OsArchitecture {
-        try {
-            return [string][System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
-        } catch {
-            if ($env:PROCESSOR_ARCHITEW6432) { return $env:PROCESSOR_ARCHITEW6432 }
-            return $env:PROCESSOR_ARCHITECTURE
-        }
+        if ($env:PROCESSOR_ARCHITEW6432) { return [string]$env:PROCESSOR_ARCHITEW6432 }
+        return [string]$env:PROCESSOR_ARCHITECTURE
     }
 
     # releases/latest answers 302 to .../releases/tag/v<X.Y.Z>. Reading that Location costs
@@ -82,11 +87,13 @@
         if ([Environment]::OSVersion.Version.Major -lt 10) {
             throw 'rexenv needs Windows 10 or 11.'
         }
-        $arch = Get-OsArchitecture
-        if ($arch -match '^ARM64$') {
+        # The one refusal is a 32-bit Windows. Anything 64-bit gets the x64 build: native on x64,
+        # emulated on Arm. An architecture the environment does not name is not a reason to stop.
+        if (-not [Environment]::Is64BitOperatingSystem) {
+            throw 'rexenv is built for 64-bit Windows (x64); this Windows is 32-bit.'
+        }
+        if ((Get-OsArchitecture) -match '^ARM64$') {
             Say 'note: Windows on Arm is not supported. The x64 build runs under emulation, but the PHP and PostgreSQL builds rexenv downloads are x64 only.'
-        } elseif ($arch -notmatch '^(X64|AMD64)$') {
-            throw "rexenv is built for 64-bit Windows (x64); this machine is $arch."
         }
 
         $existing = Get-InstalledRexenv

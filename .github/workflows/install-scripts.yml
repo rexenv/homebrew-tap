@@ -49,6 +49,15 @@ jobs:
           if LC_ALL=C grep -n '[^[:print:][:space:]]' install.ps1; then
             echo "::error::install.ps1 must be ASCII only"; exit 1
           fi
+      - name: install.ps1 never names RuntimeInformation
+        # In an interactive Windows PowerShell 5.1 (a user typing `irm | iex`) that type name
+        # resolves to PSReadLine 2.0.0's internal class and OSArchitecture reads as $null; the
+        # first release refused every Windows desktop that way. This job's runs are
+        # non-interactive, load no PSReadLine, and cannot see it — hence a grep, not a run.
+        run: |
+          if grep -n 'RuntimeInformation' install.ps1 | grep -v '^[0-9]*: *#'; then
+            echo "::error::install.ps1 resolves RuntimeInformation — see the comment on Get-OsArchitecture"; exit 1
+          fi
       - name: PSScriptAnalyzer install.ps1
         shell: pwsh
         run: |
