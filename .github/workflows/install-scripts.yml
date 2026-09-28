@@ -11,7 +11,7 @@
 # It proves the mechanics: version lookup, download, checksum, install, the result on
 # disk. It cannot prove the OS gates a user meets on a desktop — SmartScreen and
 # Gatekeeper dialogs need a GUI session. The app repo's docs/SMOKE-TEST.md carries those
-# rows, and docs/PLAN-install-scripts.md says why the command path meets neither.
+# rows, and docs/archive/PLAN-install-scripts.md says why the command path meets neither.
 #
 # Read-only: no token beyond contents: read, nothing is pushed or published.
 name: Install scripts
