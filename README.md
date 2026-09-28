@@ -1,9 +1,45 @@
 # homebrew-tap — Homebrew tap for rexenv
 
 Homebrew **cask** tap for [rexenv](https://rexenv.rex.bd) — a native, no-Docker local
-WordPress & web development environment for macOS.
+WordPress & web development environment for macOS, Windows and Linux. rexenv's public
+releases (dmg, setup.exe, deb, AppImage) and its one-command installers live here too.
 
-## Install
+## Install with one command
+
+```sh
+curl -fsSL https://rexenv.rex.bd/install.sh | bash      # macOS, Linux
+```
+
+```powershell
+irm https://rexenv.rex.bd/install.ps1 | iex             # Windows (PowerShell)
+```
+
+Both URLs redirect to [`install.sh`](install.sh) and [`install.ps1`](install.ps1) in this
+repo — read them first; they are short. Each one installs the latest published release
+from this repo's Releases, and checks the download against the release's `.sha256` before
+installing anything:
+
+| OS | What it installs | Prompts |
+|---|---|---|
+| macOS 13+ | `rexenv.app` into `/Applications` (the universal `.app.tar.gz`) | none (sudo only if `/Applications` is not writable) |
+| Windows 10/11 x64 | the per-user `setup.exe`, run silently | none — no UAC, per-user install |
+| Ubuntu 22.04+ (amd64, arm64) | the `.deb`, through `apt` so its dependencies come along | sudo |
+| Linux without apt | the AppImage into `~/Applications` (untested outside Ubuntu) | none |
+
+If rexenv is already installed the scripts change nothing: rexenv updates itself
+(Settings → About → Check now). `REXENV_NO_LAUNCH=1` installs without starting it.
+
+**Why no Gatekeeper or SmartScreen dialog.** Both check a file the *downloading app*
+marked as coming from the internet — `com.apple.quarantine` on macOS, the Mark of the Web
+on Windows. Browsers set those marks; `curl` and PowerShell's `Invoke-WebRequest` do not.
+So the command path meets neither dialog, while a browser-downloaded dmg or setup.exe
+still does. rexenv is not notarized or code-signed: running the command is your decision
+to trust this source, exactly as trusting this tap is. Windows **Smart App Control**,
+where it is on, still blocks unsigned apps — no command changes that. The `.sha256`
+check proves the download arrived intact; that it is rexenv's rests on HTTPS to
+github.com, as it does for a browser download.
+
+## Install with Homebrew (macOS)
 
 ```sh
 brew tap rexenv/tap
