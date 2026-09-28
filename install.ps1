@@ -27,7 +27,7 @@
 # Latin-1.
 #
 # These promises are row #738 of docs/CLAIM-LEDGER.md in the app repo; the design and its
-# measurements are docs/PLAN-install-scripts.md there.
+# measurements are docs/archive/PLAN-install-scripts.md there.
 
 & {
     $ErrorActionPreference = 'Stop'
