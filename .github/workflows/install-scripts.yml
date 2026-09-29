@@ -113,6 +113,13 @@ jobs:
             printed=$(/usr/bin/rexenv --print-version)
             [ "$printed" = "$VERSION" ] || { echo "::error::rexenv --print-version says $printed"; exit 1; }
             echo "installed $got, rexenv --print-version = $printed"
+            # The apt repository is in place, signed-by its own key, and apt knows rexenv from it
+            # (whether this run installed from it or, while it lags a release, the .deb directly).
+            grep -qx 'deb \[signed-by=/etc/apt/keyrings/rexenv.gpg\] https://rexenv.github.io/apt stable main' \
+              /etc/apt/sources.list.d/rexenv.list || { echo "::error::the apt source is missing or wrong"; exit 1; }
+            apt-cache policy rexenv | grep -q 'https://rexenv.github.io/apt stable/main' ||
+              { echo "::error::apt does not know rexenv from the repository"; apt-cache policy rexenv; exit 1; }
+            echo "apt source in place: $(apt-cache policy rexenv | awk '/Candidate:/ {print "candidate " $2}')"
           fi
       - name: Second run touches nothing
         env:

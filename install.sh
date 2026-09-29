@@ -6,8 +6,9 @@
 # Installs the latest published rexenv release from this repository's GitHub Releases:
 #
 #   macOS  rexenv.app into /Applications, from the universal .app.tar.gz
-#   Linux  the .deb through apt (Ubuntu 22.04 or newer); without apt, the AppImage into
-#          ~/Applications (untested outside Ubuntu)
+#   Linux  with apt (Ubuntu 22.04 or newer): adds rexenv's apt repository (the key is in this
+#          script) and installs the rexenv package from it, so later updates also arrive with
+#          `apt upgrade`; without apt, the AppImage into ~/Applications (untested outside Ubuntu)
 #
 # Every download is checked against the release's own .sha256 before anything is installed.
 # That proves the file arrived intact; that it is rexenv's rests on HTTPS to github.com, as
@@ -39,6 +40,30 @@ MACOS_FLOOR=13
 BUNDLE_ID="dev.rexenv.rexenv"
 APPIMAGE_DIR="${HOME}/Applications"
 APPIMAGE_PATH="${APPIMAGE_DIR}/rexenv.AppImage"
+# The apt repository (github.com/rexenv/apt, docs/PLAN-apt-repo.md in the app repo) and its key.
+# The key is carried HERE rather than downloaded: the one trust decision stays "this script", and
+# no gpg is needed to check a download of it. Fingerprint 139C C1A4 A197 1376 FC6B 586B D2F2 070D 6DFA 60C9.
+APT_URL="https://rexenv.github.io/apt"
+APT_KEYRING="/etc/apt/keyrings/rexenv.gpg"
+APT_LIST="/etc/apt/sources.list.d/rexenv.list"
+APT_KEY_B64="
+mQINBGq71F0BEADXXHHESeRWk1SVV7UB9WlbimzMwqh3V2xNlshIBhKsYUY2xa762WpPzEaRy3szKZzBx9UlZS4q1eal533y
+EOZX8fE1TbRpHdC/fw+7AT7KxP1U0F3D4mZrELIzgmdHsnuTbRn0FWDcPx1sqigNlilg0aFz+es4zy4bLFhNzjM7amAlaAnR
+EFLuvaL+Q+8zkow5C0N9+sUYTZD4730k6zNRG+qE1ir7HCs9QwL0COxUP82OSKj1v2t6sUvXs8C7TekEXlZTlfnCymlKdip4
+aW4P/VU7CDM+8pU/Q3zaJTNnM8bTnGFv/ojlnoZBMB9VENmnRAu1fpNRlDjFMyGYTzWxUHk2GGjCUIPpQTyMt/jtpM2Bi3k5
+7fpLUXGWGGvm1Tr+8gQaP/08qXSBXllx8Y9GpcDJn3x0UhwheKGDngpdzVIxr0TxqDSJQT4+Q3LRIu21ngnyuFZLDtqE2pBv
+POC9Iwu7ywcK++P5UwZS2DlS23CsMZzsNxDPukM97w59ldqe3ES9c1kpat3kHSH//EFigROp5+lYkt3RFszah7Cn2ouKgcL1
+hcMuNHz5Wm2/9ePGU03EE5NMFIbaRD9MB4pbs1OxqDhtBVD2dMQuTtC30QuHsMGcH7lOlYMKAyr99gwMRB3J1CyJY2U4My6Y
+ztTZFxZ4mHpkg0tHunESl9SHUwARAQABtBVyZXhlbnYgQVBUIHJlcG9zaXRvcnmJAk4EEwEKADgWIQQTnMGkoZcTdvxrWGvS
+8gcNbfpgyQUCarvUXQIbAwULCQgHAgYVCgkICwIEFgIDAQIeAQIXgAAKCRDS8gcNbfpgyWoxD/97f6Aq1T13ZWhptII0qkVP
+D71RdB0NWO3KWICiNPiNXNNASTKZz7OtVLq8/CWxYVSUIGOGkpJKQ5kE7BEaW7IJH82OWQA86+sL8I3VN++0z0jpc+0bZWCF
+ntpfY1nNDBa0YtRV3QWDYhhtg7OK7rAkaeRXi03p2V4HHGaihZPQyxzUDlyxeML0AjVGZgFXxgmhISra5TwZ12F2bOZsck7T
+wBYMff2AokmTXzkwi3BT4AkJeIkZYGI4UW/WOw8fMqh/r+H2crmsXk633stoYWu8s4STxnkUYFZTg48q6Zcm+2hCsDpB1R2J
+MurZX+yVXeHO57MTFgJ0kBb7KzWh8UtBSSiSMyBarhow3lAwNcHoOQS9zMS3cP/p02vtfNsAPiCA61DKtwRk7RCcPavyoqun
+0O9UlVXi/cafIg5ChJaABgolrgirk97h3mSF3i7DbSpnqZw+m1mmUt0gSkZO2y6kS/g7HYS0aadO+ZW98EcgXFwnUNh8NDhE
+gQ4uuFDLqrog2GNkAtSVtxF+ncqKcQegkRJvBIx3ZPghEEw4QvLMQ8DI5F7z8NZPwJLCKkkT9xdb7oGF2j2F4qwOfNCDwwoC
+axpndWBxpegx5QGM31VgvZ7wUg3HFmQ6ClapzWoIzeGvqY3BW2rL2Ykn3m9EqymdUM+Hbz170c4tTWkjCorb+A==
+"
 
 VERSION=""
 TMP=""
@@ -218,7 +243,15 @@ install_linux() {
   if command -v dpkg-query >/dev/null 2>&1 &&
     status=$(dpkg-query -W -f='${Status}|${Version}' rexenv 2>/dev/null) &&
     [ "${status%%|*}" = "install ok installed" ]; then
-    already_installed "/usr/bin/rexenv (the rexenv package)" "${status#*|}"
+    # An install from before the repository existed: give it the source, touch nothing else.
+    if [ ! -f "$APT_LIST" ] && command -v apt-get >/dev/null 2>&1 &&
+      { [ "$(id -u)" -eq 0 ] || command -v sudo >/dev/null 2>&1; }; then
+      say "rexenv ${status#*|} is already installed: /usr/bin/rexenv (the rexenv package)"
+      say "adding rexenv's apt repository, so updates also arrive with sudo apt upgrade; the package itself is not touched"
+      add_apt_source || say "the repository could not be read now; the source is in place for the next apt update"
+    else
+      already_installed "/usr/bin/rexenv (the rexenv package)" "${status#*|}"
+    fi
     return 0
   fi
   if [ -e "$APPIMAGE_PATH" ]; then
@@ -238,25 +271,29 @@ install_linux() {
     fi
 
     resolve_version
-    make_tmp
-    # apt drops to its _apt user to read a local package; mktemp's 0700 would make it warn.
-    chmod 755 "$TMP"
-    asset="rexenv_${VERSION}_${deb_arch}.deb"
-    download_verified "$asset"
-    chmod 644 "${TMP}/${asset}"
-
     if [ "$(id -u)" -eq 0 ]; then
-      say "installing ${asset} with apt"
+      say "adding rexenv's apt repository (${APT_URL})"
     else
-      say "installing ${asset} with apt; sudo will ask for your password"
+      say "adding rexenv's apt repository (${APT_URL}); sudo will ask for your password"
     fi
-    if ! as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y "${TMP}/${asset}" </dev/null; then
-      say "apt could not install it with its current package lists; refreshing them once and retrying"
-      as_root env DEBIAN_FRONTEND=noninteractive apt-get update </dev/null
-      as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y "${TMP}/${asset}" </dev/null ||
-        die "apt could not install ${asset}; its message above names the missing piece."
+    # From the repository when it carries the latest release. A repository that lags the release
+    # (it is published after the release, behind an approval) or cannot be read gets the latest
+    # .deb installed directly, checked against its .sha256 — the source stays, so the next
+    # version arrives through apt either way.
+    if add_apt_source && [ "$(apt_candidate)" = "$VERSION" ]; then
+      say "installing rexenv ${VERSION} from the repository"
+      apt_install rexenv
+    else
+      say "the repository does not offer ${VERSION} yet; installing the release's .deb directly"
+      make_tmp
+      # apt drops to its _apt user to read a local package; mktemp's 0700 would make it warn.
+      chmod 755 "$TMP"
+      asset="rexenv_${VERSION}_${deb_arch}.deb"
+      download_verified "$asset"
+      chmod 644 "${TMP}/${asset}"
+      apt_install "${TMP}/${asset}"
     fi
-    say "installed rexenv ${VERSION} (the rexenv package, /usr/bin/rexenv)"
+    say "installed rexenv ${VERSION} (the rexenv package, /usr/bin/rexenv); updates: Settings -> About, or sudo apt upgrade"
     launch_linux /usr/bin/rexenv
   else
     say "note: no apt here, so this installs the AppImage. rexenv is tested on Ubuntu 22.04 and newer; ${os_name:-this distribution} is not tested."
@@ -273,6 +310,38 @@ install_linux() {
       say "libfuse2 is not installed, and an AppImage needs it to mount. Install it (Fedora: fuse-libs, Arch: fuse2), or run it as APPIMAGE_EXTRACT_AND_RUN=1 ${APPIMAGE_PATH}"
     fi
     launch_linux "$APPIMAGE_PATH"
+  fi
+}
+
+# The source line apt reads: our key only, for our repository only.
+apt_line() {
+  printf 'deb [signed-by=%s] %s stable main\n' "$APT_KEYRING" "$APT_URL"
+}
+
+# Writes the key and the source (root), then refreshes THIS source's list only — a broken
+# third-party source elsewhere on the machine cannot fail it. Returns non-zero when the
+# repository could not be read (the caller installs the .deb directly instead).
+add_apt_source() {
+  as_root install -d -m 0755 /etc/apt/keyrings
+  printf '%s' "$APT_KEY_B64" | tr -d ' \n' | base64 -d | as_root tee "$APT_KEYRING" >/dev/null
+  as_root chmod 0644 "$APT_KEYRING"
+  apt_line | as_root tee "$APT_LIST" >/dev/null
+  as_root chmod 0644 "$APT_LIST"
+  as_root env DEBIAN_FRONTEND=noninteractive apt-get update \
+    -o Dir::Etc::sourcelist="$APT_LIST" -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0 </dev/null
+}
+
+# What apt would install for `rexenv` now ("" when it knows no candidate).
+apt_candidate() {
+  apt-cache policy rexenv 2>/dev/null | awk '/Candidate:/ {print $2}' | grep -v '(none)' || true
+}
+
+apt_install() {
+  if ! as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@" </dev/null; then
+    say "apt could not install it with its current package lists; refreshing them once and retrying"
+    as_root env DEBIAN_FRONTEND=noninteractive apt-get update </dev/null
+    as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@" </dev/null ||
+      die "apt could not install rexenv; its message above names the missing piece."
   fi
 }
 
