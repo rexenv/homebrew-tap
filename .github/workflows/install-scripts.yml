@@ -22,8 +22,10 @@ on:
     paths: [install.sh, install.ps1, .github/workflows/install-scripts.yml]
   pull_request:
     paths: [install.sh, install.ps1, .github/workflows/install-scripts.yml]
-  release:
-    types: [published]
+  # A release published on rexenv/rexenv (since 30 Sep 2026) arrives as this dispatch from
+  # its release-published.yml; until then it was this repo's own `release: published`.
+  repository_dispatch:
+    types: [rexenv-release]
   schedule:
     - cron: "23 4 * * 1"
   workflow_dispatch:
@@ -39,7 +41,7 @@ jobs:
       # can point at a commit older than the scripts.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.ref }}
+          ref: ${{ (github.event_name == 'release' || github.event_name == 'repository_dispatch') && github.event.repository.default_branch || github.ref }}
       - name: shellcheck install.sh
         run: shellcheck -s bash install.sh
       - name: install.ps1 is ASCII only
@@ -82,11 +84,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.ref }}
+          ref: ${{ (github.event_name == 'release' || github.event_name == 'repository_dispatch') && github.event.repository.default_branch || github.ref }}
       - name: The latest published release
         id: latest
         run: |
-          loc=$(curl -fsS -o /dev/null -w '%{redirect_url}' https://github.com/rexenv/homebrew-tap/releases/latest)
+          loc=$(curl -fsS -o /dev/null -w '%{redirect_url}' https://github.com/rexenv/rexenv/releases/latest)
           echo "version=${loc##*/v}" >> "$GITHUB_OUTPUT"
       - name: Install (first run)
         env:
@@ -138,7 +140,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.ref }}
+          ref: ${{ (github.event_name == 'release' || github.event_name == 'repository_dispatch') && github.event.repository.default_branch || github.ref }}
       - name: Install (first run)
         env:
           REXENV_NO_LAUNCH: "1"
@@ -171,7 +173,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || github.ref }}
+          ref: ${{ (github.event_name == 'release' || github.event_name == 'repository_dispatch') && github.event.repository.default_branch || github.ref }}
       - name: ConstrainedLanguage is refused in a sentence
         # What an App Control policy (Smart App Control is one) does to PowerShell. No runner has
         # such a policy, so the mode is set by hand; the sentence must come before any .NET call
@@ -197,7 +199,7 @@ jobs:
           if ($out -notmatch 'Smart App Control is on') { throw 'no Smart App Control note' }
       - name: Check what landed
         run: |
-          $req = [System.Net.HttpWebRequest]::Create('https://github.com/rexenv/homebrew-tap/releases/latest')
+          $req = [System.Net.HttpWebRequest]::Create('https://github.com/rexenv/rexenv/releases/latest')
           $req.AllowAutoRedirect = $false; $req.Method = 'HEAD'
           $resp = $req.GetResponse(); $version = ([string]$resp.Headers['Location']) -replace '^.*/v', ''; $resp.Close()
           $entry = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\rexenv'

@@ -1,8 +1,11 @@
 # homebrew-tap — Homebrew tap for rexenv
 
 Homebrew **cask** tap for [rexenv](https://rexenv.rex.bd) — a native, no-Docker local
-WordPress & web development environment for macOS, Windows and Linux. rexenv's public
-releases (dmg, setup.exe, deb, AppImage) and its one-command installers live here too.
+WordPress & web development environment for macOS, Windows and Linux. The one-command
+installers live here too. rexenv's releases (dmg, setup.exe, deb, AppImage) are published on
+[rexenv/rexenv](https://github.com/rexenv/rexenv/releases) since 30 Sep 2026 — they were
+published here while the app repo was private (0.1.0–0.8.10 stay here; 0.8.8–0.8.10 are
+mirrored there byte-identical).
 
 ## Install with one command
 
@@ -138,7 +141,7 @@ brew fetch --cask rexenv     # fails loudly if the dmg doesn't match the cask's 
 ```
 
 The cask pins the sha256 of the exact dmg published on
-[this repo's releases page](https://github.com/rexenv/homebrew-tap/releases).
+[rexenv/rexenv's releases page](https://github.com/rexenv/rexenv/releases).
 
 **Why the dmg is released here and not on the app repo:** rexenv's source repo is
 private for now, and Homebrew downloads a cask's url with no authentication — a

@@ -32,8 +32,15 @@
 name: Update cask
 
 on:
-  release:
-    types: [published]
+  # A release is PUBLISHED on rexenv/rexenv (since 30 Sep 2026): its release-published.yml
+  # sends this dispatch. The daily schedule is the fallback for a dispatch that never
+  # arrived (a missing token there, a failed run) — a cask silently not moving is the
+  # failure this trigger exists to prevent. Until 30 Sep 2026 the release lived HERE and
+  # the trigger was this repo's own `release: published`.
+  repository_dispatch:
+    types: [rexenv-release]
+  schedule:
+    - cron: "41 5 * * *"
   workflow_dispatch:
 
 permissions:
@@ -50,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Where the published dmg lives. Interim: this repo (app repo still private).
-      SOURCE_REPO: rexenv/homebrew-tap
+      SOURCE_REPO: rexenv/rexenv
     steps:
       # The DEFAULT BRANCH, explicitly: on a `release` event the checkout's ref is the
       # release TAG, a detached HEAD the bump could not push from.

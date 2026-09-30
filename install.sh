@@ -34,7 +34,9 @@
 
 set -euo pipefail
 
-REPO="rexenv/homebrew-tap"
+# The releases live on rexenv/rexenv since 30 Sep 2026 (on this repo before, while the app
+# repo was private); 0.8.8–0.8.10 are mirrored there byte-identical.
+REPO="rexenv/rexenv"
 RELEASES="https://github.com/${REPO}/releases"
 MACOS_FLOOR=13
 BUNDLE_ID="dev.rexenv.rexenv"

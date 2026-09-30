@@ -6,15 +6,15 @@ cask "rexenv" do
   # broken.
   sha256 "3414c4fd7bbf8c1a0065f0e9f24e5604f86064d6496b6fdc079480f62e795839"
 
-  # INTERIM HOST — the dmg is released HERE, not on rexenv/rexenv, because the app
-  # repo is still private and `brew` fetches this URL anonymously: a private repo's
-  # release asset answers 404 to an unauthenticated GET, so a cask pointing at it
-  # cannot install for anyone. The SOURCE stays private; only the artefact is public.
-  # When rexenv/rexenv goes public, flip this url back to github.com/rexenv/rexenv
-  # and the SOURCE_REPO env in update-cask.yml with it. No `verified:` here: brew
-  # 6.0.22 deprecated that parameter in favour of its default URL verification
-  # (warned 5 Sep 2026), and the url's host is the check now.
-  url "https://github.com/rexenv/homebrew-tap/releases/download/v#{version}/rexenv_#{version}_universal.dmg"
+  # The dmg is released on rexenv/rexenv (since 30 Sep 2026, the day the app repo went
+  # public — every download from the source repository). Until then it was released
+  # HERE, because a private repo's release asset answers 404 to `brew`'s unauthenticated
+  # GET; 0.8.8–0.8.10 were mirrored onto rexenv/rexenv byte-identical when the host moved.
+  # This url and SOURCE_REPO in update-cask.yml name the same repo — the workflow refuses
+  # to bump when they drift. No `verified:` here: brew 6.0.22 deprecated that parameter
+  # in favour of its default URL verification (warned 5 Sep 2026), and the url's host is
+  # the check now.
+  url "https://github.com/rexenv/rexenv/releases/download/v#{version}/rexenv_#{version}_universal.dmg"
   name "rexenv"
   desc "Native no-Docker local WordPress and web development environment"
   homepage "https://rexenv.rex.bd/"

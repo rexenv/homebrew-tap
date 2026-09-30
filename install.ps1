@@ -35,7 +35,8 @@
     # several times over.
     $ProgressPreference = 'SilentlyContinue'
 
-    $Releases = 'https://github.com/rexenv/homebrew-tap/releases'
+    # The releases live on rexenv/rexenv since 30 Sep 2026 (on this repo before).
+    $Releases = 'https://github.com/rexenv/rexenv/releases'
     $UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\rexenv'
     $UserAgent = 'rexenv-install'
 
