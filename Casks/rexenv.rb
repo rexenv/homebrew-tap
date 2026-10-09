@@ -113,9 +113,21 @@ cask "rexenv" do
   # must be removed by the app FIRST: Settings → "Remove system changes" (see the
   # README). `zap` cleans the rest; the user's Sites folder (~/rexenv/Sites) is
   # intentionally left alone (that's their work).
-  zap trash: [
-    "~/Library/Application Support/dev.rexenv.rexenv",
-    "~/Library/LaunchAgents/dev.rexenv.rexenv.dns.plist",
-    "~/Library/LaunchAgents/dev.rexenv.rexenv.plist",
-  ]
+  #
+  # `launchctl` before `trash`: trashing a LaunchAgent's plist does not unload it. Run on the
+  # 15.8 VM, 9 Oct 2026 (the first `--zap` ever run): the DNS agent kept running from a copy in
+  # the trashed app data and kept answering UDP 15353 until logout. Unloading is zap-only on
+  # purpose — a plain uninstall keeps the data, and the DNS agent is meant to outlive the app.
+  # The Caches and WebKit folders are the app's own; the same run found them left behind.
+  zap launchctl: [
+        "dev.rexenv.rexenv",
+        "dev.rexenv.rexenv.dns",
+      ],
+      trash:     [
+        "~/Library/Application Support/dev.rexenv.rexenv",
+        "~/Library/Caches/dev.rexenv.rexenv",
+        "~/Library/LaunchAgents/dev.rexenv.rexenv.dns.plist",
+        "~/Library/LaunchAgents/dev.rexenv.rexenv.plist",
+        "~/Library/WebKit/dev.rexenv.rexenv",
+      ]
 end
