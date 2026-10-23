@@ -1,10 +1,10 @@
 cask "rexenv" do
-  version "0.9.0"
+  version "0.9.1"
   # version + sha256 are bumped AUTOMATICALLY by this repo's update-cask workflow
   # when a Release is published; the hash is computed from the DOWNLOADED release
   # asset, never a local build. Don't edit them by hand unless the automation is
   # broken.
-  sha256 "40a00f06bc28f5a09343c07af82d66c2b7ba719ea7e303e8fd8ea206a3111239"
+  sha256 "b61389c0aa8d6433cc2e4f86f42d1c57f0d98b799c51c3662e50acf2b7ca1489"
 
   # The dmg is released on rexenv/rexenv (since 30 Sep 2026, the day the app repo went
   # public — every download from the source repository). Until then it was released
